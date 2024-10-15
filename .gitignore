@@ -9,9 +9,9 @@ venv/
 .env/
 
 # Ignore output data files
-/data/
+/data/*
 *.json
-!data/example.json
+!data/example_output.json
 
 # Ignore log files
 *.log
@@ -51,7 +51,7 @@ Thumbs.db
 .DS_Store
 
 # Ignore temporary folders and links
-links/
+links/*
 !links/example.txt
 
 # Ignore compiled executable files
