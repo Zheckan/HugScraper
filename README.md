@@ -49,6 +49,10 @@ https://huggingface.co/datasets/HuggingFaceFW/fineweb
    - `datasets_info_raw.json`: Raw dataset information with all extracted content.
    - `datasets_info_clean.json`: Cleaned dataset information, with whitespace and unnecessary characters removed.
 
+4. **Use the Output**:
+   - You can use the cleaned JSON output (`datasets_info_clean.json`) to assist in selecting appropriate datasets for your project.
+   - Load the JSON file into an AI assistant (like ChatGPT or similar) and provide prompt.
+
 ### Example Output
 You can find an example of an output JSON file (`example_output.json`) in the repository under [`data/example_output.json`](data/example_output.json).
 
@@ -59,4 +63,3 @@ You can find an example of an output JSON file (`example_output.json`) in the re
 
 ## Disclaimer
 Use this tool responsibly, respecting the HuggingFace website's terms of service. This script is designed for educational purposes. And was randomly done in a few hours under well known illness named "boredom and irresponsibility". Will work in 1 out of 100 cases, if you are lucky. Good luck, human!
-
