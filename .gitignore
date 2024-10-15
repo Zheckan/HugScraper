@@ -1,0 +1,65 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+.env/
+
+# Ignore output data files
+/data/
+*.json
+!data/example.json
+
+# Ignore log files
+*.log
+
+# Ignore code editor specific settings
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# JetBrains Editors (General)
+*.idea/
+*.iws
+*.ipr
+
+# Eclipse
+*.project
+*.classpath
+
+# Ignore Mac system files
+.DS_Store
+
+# Ignore temporary files
+*.swp
+*.bak
+*.tmp
+
+# Ignore miscellaneous OS files
+Thumbs.db
+.DS_Store
+
+# Ignore temporary folders and links
+links/
+!links/example.txt
+
+# Ignore compiled executable files
+*.exe
+*.dll
+*.so
+
+# Ignore Python egg files
+*.egg-info/
+dist/
+build/
