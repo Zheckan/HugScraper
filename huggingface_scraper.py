@@ -6,28 +6,19 @@ import re
 import time
 
 
-# Read links from files in the links folder
-def read_links_from_folder(folder_path):
-    print("Reading links from folder...")
-    links = []
-    for file_name in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, file_name)
-        with open(file_path, "r", encoding="utf-8") as file:
-            links.extend([line.strip() for line in file.readlines() if line.strip()])
-    print(f"Found {len(links)} links.")
+# Read links from a file
+def read_links_from_file(file_path):
+    print(f"Reading links from {file_path}...")
+    with open(file_path, "r", encoding="utf-8") as file:
+        links = [line.strip() for line in file.readlines() if line.strip()]
+    print(f"Found {len(links)} links in {file_path}.")
     return links
 
 
-# Folder containing URL files
-links_folder = "links"
-urls = read_links_from_folder(links_folder)
-
-
 # Function to extract dataset details
-def extract_dataset_details(url):
+def extract_dataset_details(url, current_index, total_urls):
     try:
-        current_index = urls.index(url) + 1
-        print(f"{current_index} out of {len(urls)}")
+        print(f"{current_index} out of {total_urls}")
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
@@ -65,7 +56,7 @@ def extract_dataset_details(url):
                 string=lambda text: text and f"{category}" in text,
             )
             category_values = []
-            if category_tag:
+            if (category_tag):
                 parent_div = category_tag.find_parent(
                     "div", {"class": "mr-1 flex flex-wrap items-center"}
                 )
@@ -94,7 +85,7 @@ def extract_dataset_details(url):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching {url}: {e}")
         return {
-            "id": urls.index(url) + 1,
+            "id": current_index,
             "link": url,
             "size_of_downloaded_dataset_files": "Error fetching size",
             "description": "Error fetching description",
@@ -105,46 +96,53 @@ def extract_dataset_details(url):
         }
 
 
-# Extract details for each URL and save to JSON
-output_folder = "data"
-os.makedirs(output_folder, exist_ok=True)
-
-# Save the raw data
-print("Starting extraction of dataset details...")
-output_file_raw = os.path.join(output_folder, "datasets_info_raw.json")
-data_list = [extract_dataset_details(url) for url in urls]
-print("Saving raw data...")
-with open(output_file_raw, mode="w", encoding="utf-8") as file:
-    json.dump(data_list, file, indent=4, ensure_ascii=False)
-print(f"Raw data saved to {output_file_raw}")
-
-
 # Clean the data by removing excessive whitespace, newlines, and non-text characters
 def clean_text(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-print("Cleaning extracted data...")
-data_list_cleaned = []
-for idx, data in enumerate(data_list, start=1):
-    print(f"{idx} out of {len(data_list)}")
-    cleaned_data = {
-        "id": idx,
-        "link": data["link"],
-        "size_of_downloaded_dataset_files": clean_text(
-            data["size_of_downloaded_dataset_files"]
-        ),
-        "description": clean_text(data["description"]),
-        "modalities": [clean_text(modality) for modality in data["modalities"]],
-        "formats": [clean_text(fmt) for fmt in data["formats"]],
-        "tags": [clean_text(tag) for tag in data["tags"]],
-        "libraries": [clean_text(library) for library in data["libraries"]],
-    }
-    data_list_cleaned.append(cleaned_data)
+# Process each file in the links folder
+links_folder = "links"
+output_folder_raw = "data/raw"
+output_folder_clean = "data/clean"
+os.makedirs(output_folder_raw, exist_ok=True)
+os.makedirs(output_folder_clean, exist_ok=True)
 
-# Save the cleaned data
-output_file_clean = os.path.join(output_folder, "datasets_info_clean.json")
-print("Saving cleaned data...")
-with open(output_file_clean, mode="w", encoding="utf-8") as file:
-    json.dump(data_list_cleaned, file, indent=4, ensure_ascii=False)
-print(f"Cleaned data saved to {output_file_clean}")
+for file_name in os.listdir(links_folder):
+    file_path = os.path.join(links_folder, file_name)
+    urls = read_links_from_file(file_path)
+
+    # Extract details for each URL and save to JSON
+    print(f"Starting extraction of dataset details for {file_name}...")
+    data_list = [extract_dataset_details(url, idx + 1, len(urls)) for idx, url in enumerate(urls)]
+
+    # Save the raw data
+    output_file_raw = os.path.join(output_folder_raw, f"{os.path.splitext(file_name)[0]}_raw.json")
+    print(f"Saving raw data to {output_file_raw}...")
+    with open(output_file_raw, mode="w", encoding="utf-8") as file:
+        json.dump(data_list, file, indent=4, ensure_ascii=False)
+    print(f"Raw data saved to {output_file_raw}")
+
+    # Clean the data
+    print(f"Cleaning extracted data for {file_name}...")
+    data_list_cleaned = []
+    for idx, data in enumerate(data_list, start=1):
+        print(f"{idx} out of {len(data_list)}")
+        cleaned_data = {
+            "id": idx,
+            "link": data["link"],
+            "size_of_downloaded_dataset_files": clean_text(data["size_of_downloaded_dataset_files"]),
+            "description": clean_text(data["description"]),
+            "modalities": [clean_text(modality) for modality in data["modalities"]],
+            "formats": [clean_text(fmt) for fmt in data["formats"]],
+            "tags": [clean_text(tag) for tag in data["tags"]],
+            "libraries": [clean_text(library) for library in data["libraries"]],
+        }
+        data_list_cleaned.append(cleaned_data)
+
+    # Save the cleaned data
+    output_file_clean = os.path.join(output_folder_clean, f"{os.path.splitext(file_name)[0]}_clean.json")
+    print(f"Saving cleaned data to {output_file_clean}...")
+    with open(output_file_clean, mode="w", encoding="utf-8") as file:
+        json.dump(data_list_cleaned, file, indent=4, ensure_ascii=False)
+    print(f"Cleaned data saved to {output_file_clean}")
