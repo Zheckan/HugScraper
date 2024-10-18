@@ -1,17 +1,21 @@
-import requests
-from bs4 import BeautifulSoup
 import json
 import os
 import re
-import time
+import requests
+from bs4 import BeautifulSoup
+
+# Constants
+LINKS_FOLDER = "links"
+OUTPUT_FOLDER_RAW = "data/raw"
+OUTPUT_FOLDER_CLEAN = "data/clean"
 
 
 # Read links from a file
-def read_links_from_file(file_path):
-    print(f"Reading links from {file_path}...")
-    with open(file_path, "r", encoding="utf-8") as file:
-        links = [line.strip() for line in file.readlines() if line.strip()]
-    print(f"Found {len(links)} links in {file_path}.")
+def read_links_from_file(path):
+    print(f"Reading links from {path}...")
+    with open(path, "r", encoding="utf-8") as f:
+        links = [line.strip() for line in f.readlines() if line.strip()]
+    print(f"Found {len(links)} links in {path}.")
     return links
 
 
@@ -22,6 +26,30 @@ def extract_dataset_details(url, current_index, total_urls):
         response = requests.get(url)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
+
+        # Extract dataset name
+        dataset_creator_name_tag = soup.find(
+            "div", {"class": "group flex flex-none items-center"}
+        )
+        dataset_creator_name = (
+            dataset_creator_name_tag.find(
+                "a",
+                {"class": "text-gray-400 hover:text-blue-600"},
+            ).text.strip()
+            if dataset_creator_name_tag
+            else ""
+        )
+        dataset_name_tag = soup.find("div", {"class": "max-w-full"})
+        dataset_name = (
+            dataset_name_tag.find(
+                "a",
+                {"class": "break-words font-mono font-semibold hover:text-blue-600"},
+            ).text.strip()
+            if dataset_name_tag
+            else ""
+        )
+
+        dataset_full_name = f"{dataset_creator_name}/{dataset_name}"
 
         # Extract dataset description
         description_tag = soup.find("div", {"class": "2xl:pr-6"})
@@ -53,10 +81,10 @@ def extract_dataset_details(url, current_index, total_urls):
                 {
                     "class": "mb-1 mr-1 p-1 text-sm leading-tight text-gray-400 md:mb-1.5"
                 },
-                string=lambda text: text and f"{category}" in text,
+                string=lambda text, cat=category: text and cat in text,
             )
             category_values = []
-            if (category_tag):
+            if category_tag:
                 parent_div = category_tag.find_parent(
                     "div", {"class": "mr-1 flex flex-wrap items-center"}
                 )
@@ -75,6 +103,7 @@ def extract_dataset_details(url, current_index, total_urls):
         return {
             "id": current_index,
             "link": url,
+            "dataset_full_name": dataset_full_name,
             "size_of_downloaded_dataset_files": size,
             "description": description,
             "modalities": extracted_categories.get("modalities", []),
@@ -87,6 +116,7 @@ def extract_dataset_details(url, current_index, total_urls):
         return {
             "id": current_index,
             "link": url,
+            "dataset_full_name": "Error fetching dataset name",
             "size_of_downloaded_dataset_files": "Error fetching size",
             "description": "Error fetching description",
             "modalities": [],
@@ -102,25 +132,26 @@ def clean_text(text):
 
 
 # Process each file in the links folder
-links_folder = "links"
-output_folder_raw = "data/raw"
-output_folder_clean = "data/clean"
-os.makedirs(output_folder_raw, exist_ok=True)
-os.makedirs(output_folder_clean, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER_RAW, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER_CLEAN, exist_ok=True)
 
-for file_name in os.listdir(links_folder):
-    file_path = os.path.join(links_folder, file_name)
+for file_name in os.listdir(LINKS_FOLDER):
+    file_path = os.path.join(LINKS_FOLDER, file_name)
     urls = read_links_from_file(file_path)
 
     # Extract details for each URL and save to JSON
     print(f"Starting extraction of dataset details for {file_name}...")
-    data_list = [extract_dataset_details(url, idx + 1, len(urls)) for idx, url in enumerate(urls)]
+    data_list = [
+        extract_dataset_details(url, idx + 1, len(urls)) for idx, url in enumerate(urls)
+    ]
 
     # Save the raw data
-    output_file_raw = os.path.join(output_folder_raw, f"{os.path.splitext(file_name)[0]}_raw.json")
+    output_file_raw = os.path.join(
+        OUTPUT_FOLDER_RAW, f"{os.path.splitext(file_name)[0]}_raw.json"
+    )
     print(f"Saving raw data to {output_file_raw}...")
-    with open(output_file_raw, mode="w", encoding="utf-8") as file:
-        json.dump(data_list, file, indent=4, ensure_ascii=False)
+    with open(output_file_raw, mode="w", encoding="utf-8") as f:
+        json.dump(data_list, f, indent=4, ensure_ascii=False)
     print(f"Raw data saved to {output_file_raw}")
 
     # Clean the data
@@ -131,7 +162,10 @@ for file_name in os.listdir(links_folder):
         cleaned_data = {
             "id": idx,
             "link": data["link"],
-            "size_of_downloaded_dataset_files": clean_text(data["size_of_downloaded_dataset_files"]),
+            "dataset_full_name": clean_text(data["dataset_full_name"]),
+            "size_of_downloaded_dataset_files": clean_text(
+                data["size_of_downloaded_dataset_files"]
+            ),
             "description": clean_text(data["description"]),
             "modalities": [clean_text(modality) for modality in data["modalities"]],
             "formats": [clean_text(fmt) for fmt in data["formats"]],
@@ -141,8 +175,10 @@ for file_name in os.listdir(links_folder):
         data_list_cleaned.append(cleaned_data)
 
     # Save the cleaned data
-    output_file_clean = os.path.join(output_folder_clean, f"{os.path.splitext(file_name)[0]}_clean.json")
+    output_file_clean = os.path.join(
+        OUTPUT_FOLDER_CLEAN, f"{os.path.splitext(file_name)[0]}_clean.json"
+    )
     print(f"Saving cleaned data to {output_file_clean}...")
-    with open(output_file_clean, mode="w", encoding="utf-8") as file:
-        json.dump(data_list_cleaned, file, indent=4, ensure_ascii=False)
+    with open(output_file_clean, mode="w", encoding="utf-8") as f:
+        json.dump(data_list_cleaned, f, indent=4, ensure_ascii=False)
     print(f"Cleaned data saved to {output_file_clean}")
